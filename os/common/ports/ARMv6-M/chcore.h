@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -72,16 +71,18 @@
 #define PORT_NATURAL_ALIGN              sizeof (void *)
 
 /**
- * @brief   Stack alignment constant.
- * @note    It is the alignment required for the stack pointer.
+ * @brief   Stack initial alignment constant.
+ * @note    It is the alignment required for the initial stack pointer,
+ *          must be a multiple of sizeof (port_stkline_t).
  */
-#define PORT_STACK_ALIGN                sizeof (stkalign_t)
+#define PORT_STACK_ALIGN                8U
 
 /**
  * @brief   Working Areas alignment constant.
- * @note    It is the alignment to be enforced for thread working areas.
+ * @note    It is the alignment required for the initial stack pointer,
+ *          must be a multiple of sizeof (port_stkline_t).
  */
-#define PORT_WORKING_AREA_ALIGN         PORT_STACK_ALIGN
+#define PORT_WORKING_AREA_ALIGN         8U
 /** @} */
 
 /**
@@ -197,6 +198,23 @@
   #endif
 #endif
 
+/* Inclusion of SMP support, if enabled.*/
+#if (CH_CFG_SMP_MODE == TRUE) || defined(__DOXYGEN__)
+#if !defined(_FROM_ASM_)
+#if !defined(__CHIBIOS_RT__)
+#error "SMP is supported in RT only"
+#endif
+
+#include "chcoresmp.h"
+
+#if !defined(PORT_CORES_NUMBER)
+#error "PORT_CORES_NUMBER not defined in chcoresmp.h"
+#endif
+
+#endif
+#else /* CH_CFG_SMP_MODE != TRUE */
+#endif /* CH_CFG_SMP_MODE != TRUE */
+
 /**
  * @name    Architecture
  * @{
@@ -234,10 +252,18 @@
 /**
  * @brief   Port-specific information string.
  */
-#if (CORTEX_ALTERNATE_SWITCH == FALSE) || defined(__DOXYGEN__)
-  #define PORT_INFO                     "Preemption through NMI"
+#if (CH_CFG_SMP_MODE == TRUE) || defined(__DOXYGEN__)
+  #if (CORTEX_ALTERNATE_SWITCH == FALSE) || defined(__DOXYGEN__)
+    #define PORT_INFO                   "Preemption through NMI (SMP)"
+  #else
+    #define PORT_INFO                   "Preemption through PendSV (SMP)"
+  #endif
 #else
-  #define PORT_INFO                     "Preemption through PendSV"
+  #if (CORTEX_ALTERNATE_SWITCH == FALSE) || defined(__DOXYGEN__)
+    #define PORT_INFO                   "Preemption through NMI"
+  #else
+    #define PORT_INFO                   "Preemption through PendSV"
+  #endif
 #endif
 /** @} */
 
@@ -345,17 +371,6 @@ struct port_context {
                          ((size_t)(n)) + ((size_t)(PORT_INT_REQUIRED_STACK)))
 
 /**
- * @brief   Static working area allocation.
- * @details This macro is used to allocate a static thread working area
- *          aligned as both position and size.
- *
- * @param[in] s         the name to be assigned to the stack array
- * @param[in] n         the stack size to be assigned to the thread
- */
-#define PORT_WORKING_AREA(s, n)                                             \
-  stkalign_t s[THD_WORKING_AREA_SIZE(n) / sizeof (stkalign_t)]
-
-/**
  * @brief   IRQ prologue code.
  * @details This macro must be inserted at the start of all IRQ handlers
  *          enabled to invoke system APIs.
@@ -378,19 +393,15 @@ struct port_context {
  */
 #define PORT_IRQ_EPILOGUE() __port_irq_epilogue(_saved_lr)
 
-#ifndef PORT_IRQ_ATTRIBUTES
-#define PORT_IRQ_ATTRIBUTES
-#endif
-
 /**
  * @brief   IRQ handler function declaration.
  * @note    @p id can be a function name or a vector number depending on the
  *          port implementation.
  */
 #ifdef __cplusplus
-#define PORT_IRQ_HANDLER(id) extern "C" PORT_IRQ_ATTRIBUTES void id(void)
+  #define PORT_IRQ_HANDLER(id) extern "C" void id(void)
 #else
-#define PORT_IRQ_HANDLER(id) PORT_IRQ_ATTRIBUTES void id(void)
+  #define PORT_IRQ_HANDLER(id) void id(void)
 #endif
 
 /**
@@ -419,12 +430,29 @@ struct port_context {
 #else
   #define port_switch(ntp, otp) do {                                        \
     struct port_intctx *r13 = (struct port_intctx *)__get_PSP();            \
-    if ((stkalign_t *)(void *)(r13 - 1) < (otp)->wabase) {                  \
-      CH_CFG_STACK_OVERFLOW_HOOK(otp);										\
+    if ((stkline_t *)(void *)(r13 - 1) < (otp)->wabase) {                   \
+      chSysHalt("stack overflow");                                          \
     }                                                                       \
     __port_switch(ntp, otp);                                                \
   } while (false)
 #endif
+
+/**
+ * @brief   Returns a word representing a critical section status.
+ *
+ * @return              The critical section status.
+ */
+#define port_get_lock_status() __port_get_irq_status()
+
+/**
+ * @brief   Determines if in a critical section.
+ *
+ * @param[in] sts       status word returned by @p port_get_lock_status()
+ * @return              The current status.
+ * @retval false        if running outside a critical section.
+ * @retval true         if running within a critical section.
+ */
+#define port_is_locked(sts) !__port_irq_enabled(sts)
 
 /*===========================================================================*/
 /* External declarations.                                                    */
@@ -452,7 +480,7 @@ extern "C" {
  *
  * @return              The interrupts status.
  */
-static inline syssts_t port_get_irq_status(void) {
+static inline syssts_t __port_get_irq_status(void) {
 
   return (syssts_t)__get_PRIMASK();
 }
@@ -466,7 +494,7 @@ static inline syssts_t port_get_irq_status(void) {
  * @retval false        the word specified a disabled interrupts status.
  * @retval true         the word specified an enabled interrupts status.
  */
-static inline bool port_irq_enabled(syssts_t sts) {
+static inline bool __port_irq_enabled(syssts_t sts) {
 
   return (sts & (syssts_t)1) == (syssts_t)0;
 }
@@ -490,6 +518,9 @@ static inline bool port_is_isr_context(void) {
 static inline void port_lock(void) {
 
   __disable_irq();
+#if CH_CFG_SMP_MODE == TRUE
+  port_spinlock_take();
+#endif
 }
 
 /**
@@ -498,6 +529,9 @@ static inline void port_lock(void) {
  */
 static inline void port_unlock(void) {
 
+#if CH_CFG_SMP_MODE == TRUE
+  port_spinlock_release();
+#endif
   __enable_irq();
 }
 
@@ -569,7 +603,11 @@ static inline void port_wait_for_interrupt(void) {
 #if !defined(_FROM_ASM_)
 
 #if CH_CFG_ST_TIMEDELTA > 0
+#if (CH_CFG_SMP_MODE == TRUE) && (PORT_CORES_NUMBER > 1)
+#include "chcoresmp_timer.h"
+#else
 #include "chcore_timer.h"
+#endif
 #endif /* CH_CFG_ST_TIMEDELTA > 0 */
 
 #endif /* !defined(_FROM_ASM_) */

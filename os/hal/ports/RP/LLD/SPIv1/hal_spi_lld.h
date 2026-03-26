@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2021 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -79,11 +79,11 @@
 #endif
 
 #if !defined(RP_SPI_SPI1_RX_DMA_CHANNEL)
-#error "RP_SPI_SPI0_RX_DMA_CHANNEL not defined in mcuconf.h"
+#error "RP_SPI_SPI1_RX_DMA_CHANNEL not defined in mcuconf.h"
 #endif
 
 #if !defined(RP_SPI_SPI1_TX_DMA_CHANNEL)
-#error "RP_SPI_SPI0_TX_DMA_CHANNEL not defined in mcuconf.h"
+#error "RP_SPI_SPI1_TX_DMA_CHANNEL not defined in mcuconf.h"
 #endif
 
 #if !defined(RP_SPI_SPI0_DMA_PRIORITY)
@@ -154,7 +154,7 @@
   /* RX DMA mode bit mask.*/                                                \
   uint32_t                  rxdmamode;                                      \
   /* TX DMA mode bit mask.*/                                                \
-  uint32_t                  txdmamode
+  uint32_t                  txdmamode;
 
 /**
  * @brief   Low level fields of the SPI configuration structure.
@@ -163,7 +163,7 @@
   /* SSPCR0 register initialization data.*/                                 \
   uint32_t                  SSPCR0;                                         \
   /* SSPCPSR register initialization data.*/                                \
-  uint32_t                  SSPCPSR
+  uint32_t                  SSPCPSR;
 
 /*===========================================================================*/
 /* External declarations.                                                    */

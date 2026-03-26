@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2021 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -431,10 +431,10 @@ void spi_lld_abort(SPIDriver *spip) {
  */
 uint16_t spi_lld_polled_exchange(SPIDriver *spip, uint16_t frame) {
 
-  (void)spip;
-  (void)frame;
-
-  return 0;
+  spip->spi->SSPDR = (uint32_t)frame;
+  while ((spip->spi->SSPSR & SPI_SSPSR_RNE) == 0U)
+    ;
+  return (uint16_t)spip->spi->SSPDR;
 }
 
 #endif /* HAL_USE_SPI == TRUE */

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@
 /**
  * @brief   DMA channel descriptors.
  */
-const rp_dma_channel_t __rp_dma_channels[RP_DMA_CHANNELS] = {
+const rp_dma_channel_t __rp_dma_channels[RP_DMA_NUM_CHANNELS] = {
   {DMA, &DMA->CH[0],  0U,  1U << 0},
   {DMA, &DMA->CH[1],  1U,  1U << 1},
   {DMA, &DMA->CH[2],  2U,  1U << 2},
@@ -56,6 +56,13 @@ const rp_dma_channel_t __rp_dma_channels[RP_DMA_CHANNELS] = {
   {DMA, &DMA->CH[9],  9U,  1U << 9},
   {DMA, &DMA->CH[10], 10U, 1U << 10},
   {DMA, &DMA->CH[11], 11U, 1U << 11}
+#if RP_DMA_NUM_CHANNELS > 12
+  ,
+  {DMA, &DMA->CH[12], 12U, 1U << 12},
+  {DMA, &DMA->CH[13], 13U, 1U << 13},
+  {DMA, &DMA->CH[14], 14U, 1U << 14},
+  {DMA, &DMA->CH[15], 15U, 1U << 15}
+#endif
 };
 
 /*===========================================================================*/
@@ -86,7 +93,7 @@ static struct {
      * @brief   DMA callback parameter.
      */
     void            *param;
-  } channels[RP_DMA_CHANNELS];
+  } channels[RP_DMA_NUM_CHANNELS];
 } dma;
 
 /*===========================================================================*/
@@ -184,7 +191,7 @@ void dmaInit(void) {
 
   dma.c0_allocated_mask = 0U;
   dma.c1_allocated_mask = 0U;
-  for (i = 0U; i < RP_DMA_CHANNELS; i++) {
+  for (i = 0U; i < RP_DMA_NUM_CHANNELS; i++) {
     dma.channels[i].func = NULL;
   }
 }

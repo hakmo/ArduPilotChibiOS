@@ -695,6 +695,19 @@ msg_t i2c_lld_master_transmit_timeout(I2CDriver *i2cp, i2caddr_t addr,
   return msg;
 }
 
+/**
+ * @brief   Soft-stops the I2C peripheral (disables without full reset).
+ * @details This is called by i2cSoftStop() to perform a lightweight stop
+ *          that leaves the peripheral in a state where it can be restarted.
+ *          For RP2350, this is equivalent to a full stop.
+ *
+ * @param[in] i2cp      pointer to the @p I2CDriver object
+ */
+void i2c_lld_soft_stop(I2CDriver *i2cp) {
+
+  i2c_lld_stop(i2cp);
+}
+
 #endif /* HAL_USE_I2C == TRUE */
 
 /** @} */

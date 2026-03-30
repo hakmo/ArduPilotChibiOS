@@ -96,7 +96,9 @@ typedef port_stkline_t      stkline_t;
  * @note    If the compiler does not support such attribute then some
  *          time-dependent services could be degraded.
  */
+#ifndef NOINLINE
 #define NOINLINE            CC_NO_INLINE
+#endif
 
 /**
  * @brief   Memory alignment enforcement for variables.
